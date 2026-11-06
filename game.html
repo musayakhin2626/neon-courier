@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Неоновый курьер</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080b18;color:#e9faff;font:14px/1.35 system-ui,sans-serif}button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}#card{width:100%;max-width:360px;margin:auto;padding:12px;background:linear-gradient(150deg,#111d34,#160f2c);border:1px solid #30516a;border-radius:20px;overflow:hidden}header{display:flex;align-items:center;gap:8px}h1{font-size:18px;line-height:1.15;margin:0;color:#61efff}small{color:#96a9c7;font-size:10px;letter-spacing:2px}.logo{color:#f975dc;font-size:25px}#stats{display:flex;justify-content:space-between;gap:6px;margin:10px 0;font-size:12px}b{color:#ffe580;font-size:18px}#road{height:286px;position:relative;overflow:hidden;border:1px solid #346879;border-radius:12px;background:repeating-linear-gradient(0deg,transparent 0 35px,#18314a 36px 37px),linear-gradient(90deg,#0a1328,#151130)}.line{position:absolute;top:0;bottom:0;border-left:1px dashed #3c5475;left:33.333%}.line.two{left:66.666%}.thing,#robot{position:absolute;left:50%;width:30px;height:34px;margin-left:-15px;border-radius:6px}#robot{top:234px;z-index:2;background:#143a50;border:2px solid #60efff;box-shadow:0 0 15px #00dcff;color:#fff;text-align:center;font:bold 23px/27px monospace}#robot:before{content:'';position:absolute;top:-7px;left:11px;width:4px;height:5px;background:#f975dc}#robot:after{content:'';position:absolute;bottom:-5px;left:3px;width:6px;height:5px;background:#60efff;box-shadow:14px 0 #60efff}.block{background:repeating-linear-gradient(135deg,#522947 0 7px,#ad3974 7px 14px);border:2px solid #ff74b9;box-shadow:0 0 9px #db288a}.battery{background:#103d38;border:2px solid #78ffd1;box-shadow:0 0 9px #2cdca4;color:#b2ffe0;text-align:center;font:bold 25px/28px monospace}#veil{position:absolute;inset:0;z-index:3;background:#090e22e8;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:14px}#veil[hidden]{display:none}h2{margin:0 0 8px;font-size:23px;color:#ffdc82}#message{margin:0 0 16px;color:#b8cbe2}#play{padding:12px 24px;border:0;border-radius:12px;background:#65f4ed;color:#062731;font-weight:800;box-shadow:0 0 18px #21bbbc66}#controls{display:flex;gap:10px;margin-top:10px}#controls button{width:50%;height:52px;border-radius:12px;border:1px solid #4db7d2;background:#162b46;color:#89f8ff;font-size:30px;line-height:1}button:active{filter:brightness(1.4)}button:focus-visible{outline:2px solid #ffe580;outline-offset:2px}button:disabled{opacity:.4;cursor:default}#note{min-height:17px;margin:8px 0 0;text-align:center;color:#a6b9d4;font-size:11px}
+</style>
+<main id="card">
+<header><span class="logo" aria-hidden="true">◈</span><div><small>NEON / DELIVERY</small><h1>Неоновый курьер</h1></div></header>
+<div id="stats"><span>Заряд <b id="score">0</b></span><span>Рекорд <b id="best">0</b></span></div>
+<div id="road" aria-label="Дорога с тремя полосами">
+<i class="line"></i><i class="line two"></i><div id="robot" aria-label="Робот">••</div>
+<div id="veil"><h2 id="title">Доставь заряд!</h2><p id="message">Собирай батареи +10.<br>Обходи розовые преграды.</p><button id="play" type="button">Играть</button></div>
+</div>
+<div id="controls"><button id="left" type="button" aria-label="Влево" disabled>←</button><button id="right" type="button" aria-label="Вправо" disabled>→</button></div>
+<p id="note" role="status">Три полосы. Один быстрый курьер.</p>
+</main>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id),road=$('road'),robot=$('robot'),play=$('play'),left=$('left'),right=$('right');
+let lane=1,score=0,best=0,items=[],running=false,paused=false,onscreen=true,frame=null,last=0,elapsed=0,spawn=0,safe=1;
+const key='neonCourier.best.v1';
+try{best=Math.max(0,Math.floor(Number(localStorage.getItem(key))||0));if(!Number.isFinite(best))best=0}catch(e){}
+$('best').textContent=best;
+const raf=typeof requestAnimationFrame==='function'?f=>requestAnimationFrame(f):f=>setTimeout(()=>f(Date.now()),16);
+const caf=typeof cancelAnimationFrame==='function'?n=>cancelAnimationFrame(n):n=>clearTimeout(n);
+function stop(){if(frame!==null)caf(frame);frame=null;last=0}
+function move(d){if(!running||paused)return;lane=Math.max(0,Math.min(2,lane+d));robot.style.left=((lane+.5)*100/3)+'%'}
+left.addEventListener('click',()=>move(-1));right.addEventListener('click',()=>move(1));
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(e.key==='ArrowLeft'?-1:1)}});
+function record(){if(score>best){best=score;$('best').textContent=best;try{localStorage.setItem(key,String(best))}catch(e){}}}
+function finish(){running=false;stop();record();left.disabled=right.disabled=true;$('title').textContent='Доставка окончена';$('message').textContent='Собрано заряда: '+score;$('veil').hidden=false;play.textContent='Ещё раз';$('note').textContent='Новый маршрут — новая попытка!'}
+function add(l,b){const el=document.createElement('div');el.className='thing '+(b?'battery':'block');el.textContent=b?'+':'';el.style.left=((l+.5)*100/3)+'%';road.appendChild(el);items.push({el:el,l:l,b:b,y:-38})}
+function wave(){
+// Each row has a safe lane, at most one lane away from the previous gap.
+safe=Math.max(0,Math.min(2,safe+Math.floor(Math.random()*3)-1));
+for(let l=0;l<3;l++)if(l!==safe)add(l,false);
+add(safe,true);
+}
+function tick(t){
+frame=null;if(!running||paused)return;
+const dt=last?Math.min((t-last)/1000,.05):0;last=t;elapsed+=dt;spawn-=dt;
+const speed=Math.min(250,90+elapsed*2);
+if(spawn<=0){wave();spawn=1.35}
+for(let i=items.length-1;i>=0;i--){const o=items[i];o.y+=speed*dt;o.el.style.transform='translateY('+o.y+'px)';
+if(o.l===lane&&o.y+34>238&&o.y<264){if(!o.b){finish();return}score+=10;$('score').textContent=score;record();o.el.remove();items.splice(i,1)}
+else if(o.y>300){o.el.remove();items.splice(i,1)}}
+frame=raf(tick);
+}
+function visibility(){const p=!!document.hidden||!onscreen;paused=p;stop();if(running){left.disabled=right.disabled=p;$('note').textContent=p?'Пауза':'Батарея +10 · Избегай преград';if(!p)frame=raf(tick)}}
+play.addEventListener('click',()=>{stop();items.forEach(o=>o.el.remove());items=[];lane=1;score=0;elapsed=0;spawn=.6;safe=1;running=true;robot.style.left='50%';$('score').textContent='0';$('veil').hidden=true;visibility()});
+document.addEventListener('visibilitychange',visibility);
+window.addEventListener('pagehide',()=>{onscreen=false;visibility()});
+window.addEventListener('pageshow',()=>{onscreen=true;visibility()});
+if(typeof IntersectionObserver==='function')new IntersectionObserver(entries=>{onscreen=entries[0].isIntersecting;visibility()},{threshold:0}).observe($('card'));
+})();
+</script>
+</html>
